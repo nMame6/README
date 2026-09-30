@@ -1,0 +1,6 @@
+# 依存パッケージ（npm install で再生成できる）
+node_modules/
+
+# SQLite の実データファイル（実行すると自動生成される。環境ごとのデータのため管理しない）
+server/*.db
+server/*.db-journal

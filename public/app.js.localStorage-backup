@@ -1,0 +1,191 @@
+// =====================================================
+// かんたんタスク管理アプリ（Trello風）
+// =====================================================
+//
+// データの持ち方:
+//   data  ... どの列にどのカードが並んでいるか（IDの配列）
+//             例: { todo: ["c1", "c2"], doing: ["c3"], done: [] }
+//   texts ... カードIDごとの文字（内容）
+//             例: { c1: "牛乳を買う", c2: "掃除する" }
+//
+// この2つを localStorage に保存すれば、閉じても消えません。
+// -----------------------------------------------------
+
+// 列の定義（key = プログラム用の名前, title = 画面表示）
+const COLUMNS = [
+  { key: "todo", title: "未着手" },
+  { key: "doing", title: "作業中" },
+  { key: "done", title: "完了" },
+];
+
+// localStorage に保存するときの名前
+const STORAGE_KEY = "kanban-data-v1";
+
+let data = { todo: [], doing: [], done: [] };
+let texts = {};
+
+const boardEl = document.getElementById("board");
+
+// ===== 保存と読み込み =====
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ data, texts }));
+}
+
+function load() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      data = parsed.data;
+      texts = parsed.texts;
+      return;
+    } catch (e) {
+      console.error("保存データの読み込みに失敗しました。初期状態にします。", e);
+    }
+  }
+
+  // 初回だけ表示するサンプル
+  addCardData("todo", "牛乳を買う");
+  addCardData("todo", "部屋を掃除する");
+  addCardData("doing", "このアプリを作る");
+  addCardData("done", "VS Code をインストール");
+}
+
+// ===== データ操作 =====
+
+// ユニークなIDを作る（時刻 + ランダム）
+function makeId() {
+  return "c" + Date.now() + Math.floor(Math.random() * 1000);
+}
+
+// 指定した列にカードを追加する
+function addCardData(colKey, text) {
+  const id = makeId();
+  texts[id] = text;
+  data[colKey].push(id);
+}
+
+// カードを削除する
+function deleteCard(id) {
+  COLUMNS.forEach((col) => {
+    data[col.key] = data[col.key].filter((x) => x !== id);
+  });
+  delete texts[id];
+  save();
+  render();
+}
+
+// ドラッグで並びが変わったあと、画面の状態を data に反映する
+function syncFromDom() {
+  COLUMNS.forEach((col) => {
+    const listEl = document.querySelector('.list[data-col="' + col.key + '"]');
+    const ids = Array.from(listEl.querySelectorAll(".card")).map(
+      (el) => el.dataset.id
+    );
+    data[col.key] = ids;
+  });
+  save();
+}
+
+// ===== 画面を作る =====
+
+function render() {
+  boardEl.innerHTML = ""; // いったん全部消してから作り直す
+
+  COLUMNS.forEach((col) => {
+    const colEl = document.createElement("div");
+    colEl.className = "column";
+
+    // 列のタイトル
+    const titleEl = document.createElement("h2");
+    titleEl.textContent = col.title;
+    colEl.appendChild(titleEl);
+
+    // カードが入る場所
+    const listEl = document.createElement("div");
+    listEl.className = "list";
+    listEl.dataset.col = col.key;
+    data[col.key].forEach((id) => {
+      listEl.appendChild(createCardEl(id));
+    });
+    colEl.appendChild(listEl);
+
+    // カード追加フォーム
+    colEl.appendChild(createAddForm(col.key));
+
+    boardEl.appendChild(colEl);
+  });
+
+  enableDragAndDrop();
+}
+
+// カード1枚のHTMLを作る
+function createCardEl(id) {
+  const cardEl = document.createElement("div");
+  cardEl.className = "card";
+  cardEl.dataset.id = id;
+
+  const textEl = document.createElement("span");
+  textEl.className = "card-text";
+  textEl.textContent = texts[id];
+  cardEl.appendChild(textEl);
+
+  const delBtn = document.createElement("button");
+  delBtn.className = "delete-btn";
+  delBtn.textContent = "×";
+  delBtn.title = "削除";
+  delBtn.addEventListener("click", () => deleteCard(id));
+  cardEl.appendChild(delBtn);
+
+  return cardEl;
+}
+
+// 「+ 追加」フォームを作る
+function createAddForm(colKey) {
+  const form = document.createElement("form");
+  form.className = "add-form";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "新しいカード...";
+
+  const btn = document.createElement("button");
+  btn.type = "submit";
+  btn.textContent = "+ 追加";
+
+  form.appendChild(input);
+  form.appendChild(btn);
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault(); // ページ再読み込みを止める
+    const value = input.value.trim();
+    if (!value) return;
+    addCardData(colKey, value);
+    save();
+    render();
+  });
+
+  return form;
+}
+
+// ===== ドラッグ＆ドロップ =====
+
+function enableDragAndDrop() {
+  if (typeof Sortable === "undefined") {
+    console.warn("SortableJS が読み込めませんでした（ネット接続を確認）。ドラッグ移動は無効です。");
+    return;
+  }
+
+  document.querySelectorAll(".list").forEach((listEl) => {
+    new Sortable(listEl, {
+      group: "kanban", // 同じグループの列同士で移動できる
+      animation: 150,
+      onEnd: syncFromDom, // 移動が終わったら保存
+    });
+  });
+}
+
+// ===== 起動 =====
+load();
+render();

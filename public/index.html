@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>かんたんタスク管理</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>かんたんタスク管理</h1>
+    <p class="hint">カードはドラッグで移動できます。内容はブラウザに自動保存されます。</p>
+  </header>
+
+  <!-- 列（リスト）はJavaScriptがここに作ります -->
+  <main id="board"></main>
+
+  <!-- ドラッグ移動のための部品（SortableJS）を読み込む -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.6/Sortable.min.js"></script>
+  <!-- 自分で書くプログラム -->
+  <script src="app.js"></script>
+</body>
+</html>
